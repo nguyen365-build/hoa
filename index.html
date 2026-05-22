@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HOA Photos Gallery</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 50px;
+        }
+
+        header h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .stats {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            font-size: 1em;
+            opacity: 0.85;
+        }
+
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .gallery-item {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            cursor: pointer;
+        }
+
+        .gallery-item:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+        }
+
+        .gallery-item img {
+            width: 100%;
+            height: 250px;
+            object-fit: cover;
+            display: block;
+            background: #f0f0f0;
+        }
+
+        .gallery-item-info {
+            padding: 15px;
+            background: white;
+        }
+
+        .gallery-item-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+            word-break: break-word;
+            font-size: 0.9em;
+        }
+
+        .gallery-item-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .gallery-item-link {
+            flex: 1;
+            display: inline-block;
+            padding: 8px 12px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 0.85em;
+            text-align: center;
+            transition: background 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+
+        .gallery-item-link:hover {
+            background: #764ba2;
+        }
+
+        .copy-btn {
+            padding: 8px 12px;
+            background: #48bb78;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 0.85em;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .copy-btn:hover {
+            background: #38a169;
+        }
+
+        .copy-btn.copied {
+            background: #4299e1;
+        }
+
+        .loading {
+            text-align: center;
+            color: white;
+            font-size: 1.2em;
+            padding: 40px;
+        }
+
+        .error {
+            text-align: center;
+            color: #ff6b6b;
+            font-size: 1.1em;
+            padding: 40px;
+            background: rgba(255, 107, 107, 0.1);
+            border-radius: 8px;
+            border: 2px solid #ff6b6b;
+        }
+
+        footer {
+            text-align: center;
+            color: white;
+            opacity: 0.8;
+            padding-top: 30px;
+            border-top: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .repo-link {
+            color: white;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .repo-link:hover {
+            text-decoration: underline;
+        }
+
+        .refresh-btn {
+            display: block;
+            margin: 20px auto;
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 2px solid white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background 0.3s ease;
+        }
+
+        .refresh-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏘️ HOA Photos</h1>
+            <p>Shared Community Gallery</p>
+        </header>
+
+        <div class="stats">
+            <span id="photo-count">Loading photos...</span>
+        </div>
+
+        <button class="refresh-btn" onclick="location.reload()">🔄 Refresh Gallery</button>
+
+        <div class="gallery" id="gallery">
+            <div class="loading">Loading photos...</div>
+        </div>
+
+        <button class="refresh-btn" onclick="location.reload()">🔄 Refresh Gallery</button>
+
+        <footer>
+            <p>Repository: <a href="https://github.com/nguyen365-build/hoa" class="repo-link">nguyen365-build/hoa</a></p>
+            <p id="last-updated">Last updated: just now</p>
+        </footer>
+    </div>
+
+    <script>
+        const username = "nguyen365-build";
+        const repo = "hoa";
+        const branch = "main";
+
+        // Try to fetch from root level
+        const baseUrl = `https://api.github.com/repos/${username}/${repo}/contents/`;
+
+        async function loadGallery() {
+            try {
+                const gallery = document.getElementById('gallery');
+                gallery.innerHTML = '<div class="loading">Loading photos...</div>';
+
+                // Fetch files from root
+                const response = await fetch(baseUrl, {
+                    headers: { 'Accept': 'application/vnd.github.v3+json' }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`GitHub API error: ${response.status}`);
+                }
+
+                let files = await response.json();
+
+                // Filter for image files
+                const imageFiles = files.filter(f =>
+                    /\.(jpg|jpeg|png|gif|webp)$/i.test(f.name)
+                );
+
+                if (imageFiles.length === 0) {
+                    gallery.innerHTML = '<div class="error">No images found in repository</div>';
+                    document.getElementById('photo-count').textContent = '0 photos';
+                    return;
+                }
+
+                // Clear gallery
+                gallery.innerHTML = '';
+
+                // Add each image
+                imageFiles.forEach(file => {
+                    const imageUrl = `https://raw.githubusercontent.com/${username}/${repo}/${branch}/${file.name}`;
+
+                    const item = document.createElement('div');
+                    item.className = 'gallery-item';
+
+                    const img = document.createElement('img');
+                    img.src = imageUrl;
+                    img.alt = file.name;
+                    img.loading = 'lazy';
+
+                    const info = document.createElement('div');
+                    info.className = 'gallery-item-info';
+
+                    const name = document.createElement('div');
+                    name.className = 'gallery-item-name';
+                    name.textContent = file.name;
+
+                    const actions = document.createElement('div');
+                    actions.className = 'gallery-item-actions';
+
+                    // View button
+                    const viewBtn = document.createElement('a');
+                    viewBtn.href = imageUrl;
+                    viewBtn.target = '_blank';
+                    viewBtn.className = 'gallery-item-link';
+                    viewBtn.textContent = '📥 View Full Size';
+
+                    // Copy URL button
+                    const copyBtn = document.createElement('button');
+                    copyBtn.className = 'copy-btn';
+                    copyBtn.textContent = '📋 Copy URL';
+                    copyBtn.onclick = (e) => {
+                        navigator.clipboard.writeText(imageUrl);
+                        copyBtn.textContent = '✓ Copied!';
+                        copyBtn.classList.add('copied');
+                        setTimeout(() => {
+                            copyBtn.textContent = '📋 Copy URL';
+                            copyBtn.classList.remove('copied');
+                        }, 2000);
+                    };
+
+                    actions.appendChild(viewBtn);
+                    actions.appendChild(copyBtn);
+
+                    info.appendChild(name);
+                    info.appendChild(actions);
+
+                    item.appendChild(img);
+                    item.appendChild(info);
+
+                    gallery.appendChild(item);
+                });
+
+                // Update stats
+                document.getElementById('photo-count').textContent = `📸 ${imageFiles.length} photo${imageFiles.length !== 1 ? 's' : ''}`;
+                document.getElementById('last-updated').textContent = `Last updated: ${new Date().toLocaleString()}`;
+
+            } catch (error) {
+                document.getElementById('gallery').innerHTML = `
+                    <div class="error">
+                        <strong>⚠️ Error Loading Gallery</strong><br><br>
+                        ${error.message}<br><br>
+                        Make sure:<br>
+                        • Repository is <strong>Public</strong><br>
+                        • Images are uploaded to: <strong>github.com/nguyen365-build/hoa</strong><br>
+                        • GitHub API is accessible<br><br>
+                        <button class="refresh-btn" onclick="location.reload()">🔄 Try Again</button>
+                    </div>
+                `;
+                console.error('Gallery error:', error);
+            }
+        }
+
+        // Load gallery on page load
+        loadGallery();
+
+        // Auto-refresh every 5 minutes
+        setInterval(loadGallery, 5 * 60 * 1000);
+    </script>
+</body>
+</html>
